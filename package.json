@@ -1,0 +1,17 @@
+{
+  "name": "spotgacha",
+  "version": "0.0.1",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "author": "TakuKobayashi",
+  "private": true,
+  "dependencies": {
+    "@line/bot-sdk": "*",
+    "aws-sdk": "*",
+    "request": "*",
+    "querystring": "*"
+  },
+  "license": "MIT"
+}
