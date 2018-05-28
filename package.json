@@ -11,7 +11,9 @@
     "@line/bot-sdk": "*",
     "aws-sdk": "*",
     "request": "*",
-    "querystring": "*"
+    "querystring": "*",
+    "underscore": "*",
+    "underscore.string": "*"
   },
   "license": "MIT"
 }
