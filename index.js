@@ -1,4 +1,4 @@
-var linebot = require(__dirname + '/linebot.js');
+var LineBot = require(__dirname + '/linebot.js');
 
 var callLambdaResponse = function(promise, context){
   promise.then((response) => {
@@ -15,13 +15,18 @@ var callLambdaResponse = function(promise, context){
 
 exports.handler = function (event, context) {
   console.log(JSON.stringify(event));
-  var lineClient = linebot.initLineClient(process.env.ACCESSTOKEN);
+  var linebot = new LineBot(process.env.ACCESSTOKEN);
+  var lineClient = linebot.lineClient;
   event.events.forEach(function(lineMessage) {
     if(lineMessage.type == "follow"){
       var followPromise = linebot.follow(lineMessage.source.userId, lineMessage.timestamp);
-      callLambdaResponse(followPromise, context);
+      callLambdaResponse(followPromise.then(function(){
+        //return linebot.linkRichMenu(lineMessage.source.userId, process.env.RICHMENUID1);
+      }), context);
     }else if(lineMessage.type == "unfollow"){
-      linebot.unfollow(lineMessage.source.userId, lineMessage.timestamp);
+      callLambdaResponse(linebot.unfollow(lineMessage.source.userId, lineMessage.timestamp).then(function(){
+        //return linebot.unlinkRichMenu(lineMessage.source.userId, process.env.RICHMENUID1);
+      }), context);
     }else if(lineMessage.type == "postback"){
       var receiveData = JSON.parse(lineMessage.postback.data);
     }else if(lineMessage.type == "message"){

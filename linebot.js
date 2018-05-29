@@ -1,10 +1,5 @@
 var line = require('@line/bot-sdk');
 
-var AWS = require('aws-sdk');
-AWS.config.update({
-  region: 'ap-northeast-1',
-});
-var dynamo = new AWS.DynamoDB.DocumentClient();
 var underscore = require('underscore');
 var underscoreString = require("underscore.string");
 var request = require('request');
@@ -16,8 +11,6 @@ var userStatusEnum = {
   unfollow: 1,
 }
 
-var lineClient;
-
 var apiRequests = {
   hotpepper: "http://webservice.recruit.co.jp/hotpepper/gourmet/v1/",
   gnavi: "https://api.gnavi.co.jp/RestSearchAPI/20150630/",
@@ -25,18 +18,26 @@ var apiRequests = {
   yelp: "https://api.yelp.com/v3/"
 };
 
-var requestHotpepper = function(latitude, longitude) {
+var DynamoDB = require(__dirname + '/dynamodb.js');
+var dynamodb = new DynamoDB();
+
+var requestHotpepper = function(searchObj) {
   var request_params = {
-    range: 3,
     format: "json",
     key: process.env.RECRUIT_APIKEY,
-    lat: latitude,
-    lng: longitude,
     datum: "world",
     count: 100
   }
+  if(searchObj.latitude && searchObj.longitude){
+    request_params.range = searchObj.range;
+    request_params.lat = searchObj.latitude;
+    request_params.lng = searchObj.longitude;
+  }
+  if(searchObj.keyword){
+    request_params.keyword = searchObj.keyword;
+  }
   return new Promise((resolve, reject) => {
-    request({url: apiRequests.hotpepper + '?' + qs.stringify(request_params), json: true }, function(err, res, body) {
+    request({url: apiRequests.hotpepper, qs: request_params, json: true }, function(err, res, body) {
       if (error) {
         reject(error);
         return;
@@ -46,7 +47,7 @@ var requestHotpepper = function(latitude, longitude) {
   });
 };
 
-var requestGnavi = function(latitude, longitude) {
+var requestGnavi = function(searchObj) {
   var request_params = {
     range: 3,
     format: "json",
@@ -76,7 +77,7 @@ var requestGnavi = function(latitude, longitude) {
   //  request_hash[:until_morning] = 1
   //end
   return new Promise((resolve, reject) => {
-    request({url: apiRequests.gnavi + '?' + qs.stringify(request_params), json: true }, function(error, res, body) {
+    request({url: apiRequests.gnavi, qs: request_params, json: true }, function(error, res, body) {
       if (error) {
         reject(error);
         return;
@@ -108,7 +109,7 @@ var requestGnavi = function(latitude, longitude) {
 
 var lotRestaurant = function(latitude, longitude) {
   var requestResults = [];
-  return requestHotpepper(latitude, longitude).then(function(hotpepperResults) {
+  return requestHotpepper({latitude: latitude, longitude: longitude}).then(function(hotpepperResults) {
     for(var i = 0;i < hotpepperResults.length;++i){
       requestResults.push(hotpepperResults[i]);
     }
@@ -123,168 +124,205 @@ var lotRestaurant = function(latitude, longitude) {
   });
 }
 
-var getDynamodbPromise = function(tablename, filterObject){
-  return new Promise((resolve, reject) => {
-    var params = {
-      TableName: tablename,
-      Key: filterObject
-    };
-    dynamo.get(params, function(error, data) {
-      if (error) {
-        reject(error);
-        return;
+var LineBot = function(accessToken){
+  this.lineClient = new line.Client({channelAccessToken: accessToken});
+
+  this.getUserProfile = function(user_id){
+    return this.lineClient.getProfile(user_id);
+  }
+
+  this.follow = function(user_id, timestamp) {
+    var userProfileObj = {userId: user_id};
+    return this.getUserProfile(user_id).then(function(profile){
+      userProfileObj = Object.assign(userProfileObj, profile);
+      return dynamodb.getPromise("users", {user_id: user_id});
+    }).then(function(userData){
+      if(userData.Item){
+        var updateObject = {
+          updated_at: timestamp
+        }
+        updateObject[applicationName] = userStatusEnum.follow
+        return dynamodb.updatePromise("users", {user_id: user_id}, updateObject);
+      }else{
+        var insertObject = {
+          user_id: userProfileObj.userId,
+          name: userProfileObj.displayName,
+          icon_url: userProfileObj.pictureUrl,
+          description: userProfileObj.statusMessage,
+          updated_at: timestamp
+        }
+        insertObject[applicationName] = userStatusEnum.follow
+        return dynamodb.createPromise("users", insertObject);
       }
-      resolve(data);
     });
-  });
-};
+  }
 
-var updateDynamodbPromise = function(tablename, filterObject, updateObject){
-  return new Promise((resolve, reject) => {
-    var updateExpressionString = "set ";
-    var updateExpressionAttributeValues = {}
-    var keys = Object.keys(updateObject);
-    for(var i = 0;i < keys.length;++i){
-      var praceholder = ":Attr" + i.toString();
-      updateExpressionString = updateExpressionString + keys[i] + " = " + praceholder;
-      if(i != keys.length - 1){
-        updateExpressionString = updateExpressionString + ", ";
+  this.unfollow = function(user_id, timestamp) {
+    return dynamodb.getPromise("users", {user_id: user_id}).then(function(userData){
+      if(userData.Item){
+        var updateObject = {
+          updated_at: timestamp
+        }
+        updateObject[applicationName] = userStatusEnum.unfollow
+        return dynamodb.updatePromise("users", {user_id: user_id}, updateObject);
       }
-      updateExpressionAttributeValues[praceholder] = updateObject[keys[i]];
-    }
-    var params = {
-      TableName: tablename,
-      Key: filterObject,
-      UpdateExpression: updateExpressionString,
-      ExpressionAttributeValues: updateExpressionAttributeValues,
-      ReturnValues:"UPDATED_NEW"
-    };
-    dynamo.update(params, function(error, data) {
-      if (error) {
-        reject(error);
-        return;
-      }
-      resolve(data);
     });
-  });
-};
+  }
 
-var createDynamodbPromise = function(tablename, putObject){
-  var params = {
-    TableName: tablename,
-    Item: putObject
-  };
-  return new Promise((resolve, reject) => {
-    var params = {
-      TableName: tablename,
-      Item: putObject
-    };
-    dynamo.put(params, function(error, data) {
-      if (error) {
-        reject(error);
-        return;
-      }
-      resolve(data);
-    });
-  });
-};
-
-var getUserProfile = function(user_id){
-  return lineClient.getProfile(user_id);
-}
-
-exports.follow = function(user_id, timestamp) {
-  var userProfileObj = {userId: user_id};
-  return getUserProfile(user_id).then(function(profile){
-    userProfileObj = Object.assign(userProfileObj, profile);
-    return getDynamodbPromise("users", {user_id: user_id});
-  }).then(function(userData){
-    if(userData.Item){
-      var updateObject = {
-        updated_at: timestamp
-      }
-      updateObject[applicationName] = userStatusEnum.follow
-      return updateDynamodbPromise("users", {user_id: user_id}, updateObject);
-    }else{
-      var insertObject = {
-        user_id: userProfileObj.userId,
-        name: userProfileObj.displayName,
-        icon_url: userProfileObj.pictureUrl,
-        description: userProfileObj.statusMessage,
-        updated_at: timestamp
-      }
-      insertObject[applicationName] = userStatusEnum.follow
-      return createDynamodbPromise("users", insertObject);
-    }
-  });
-}
-
-exports.unfollow = function(user_id, timestamp) {
-  return getDynamodbPromise("users", {user_id: user_id}).then(function(userData){
-    if(userData.Item){
-      var updateObject = {
-        updated_at: timestamp
-      }
-      updateObject[applicationName] = userStatusEnum.unfollow
-      return updateDynamodbPromise("users", {user_id: user_id}, updateObject);
-    }
-  });
-}
-
-exports.initLineClient = function(accessToken) {
-  lineClient = new line.Client({channelAccessToken: accessToken});
-  return lineClient;
-}
-
-exports.searchRestaurant = function(lineMessageObj) {
-  if(lineMessageObj.message.type == "location"){
-    var resultSamples = []
-    return lotRestaurant(lineMessageObj.message.latitude, lineMessageObj.message.longitude).then(function(searchResult){
-      var insertObject = {
-        message_id: lineMessageObj.message.id,
-        user_id: lineMessageObj.source.userId,
-        reply_token: lineMessageObj.replyToken,
-        applicationName: applicationName,
-        input_text: lineMessageObj.message.title,
-        input_location: {
-          latitude: lineMessageObj.message.latitude,
-          longitude: lineMessageObj.message.longitude,
-          address: lineMessageObj.message.longitude
-        },
-        created_at: lineMessageObj.timestamp
-      }
-      return createDynamodbPromise("bot_messages", insertObject);
-    }).then(function(searchResult){
-      return new Promise((resolve, reject) => {
-        var messageObj = {
-          type: "template",
-          altText: lineMessageObj.text + "の検索結果",
-          template: {
-            type: "carousel",
-            columns: underscore.map(resultSamples, function(video){
-              return {
-                thumbnailImageUrl: video.thumb,
-                title: underscoreString(video.title).prune(37).value(),
-                text: "再生時間:" + video.duration.toString(),
-                defaultAction: {
-                  type: "uri",
-                  label: "動画を見る",
-                  uri: video.url
-                },
-                actions: [
-                  {
+  this.searchRestaurant = function(lineMessageObj) {
+    if(lineMessageObj.message.type == "location"){
+      var resultSamples = []
+      return lotRestaurant(lineMessageObj.message.latitude, lineMessageObj.message.longitude).then(function(searchResult){
+        var insertObject = {
+          message_id: lineMessageObj.message.id,
+          user_id: lineMessageObj.source.userId,
+          reply_token: lineMessageObj.replyToken,
+          applicationName: applicationName,
+          input_text: lineMessageObj.message.title,
+          input_location: {
+            latitude: lineMessageObj.message.latitude,
+            longitude: lineMessageObj.message.longitude,
+            address: lineMessageObj.message.longitude
+          },
+          created_at: lineMessageObj.timestamp
+        }
+        return dynamodb.createPromise("bot_messages", insertObject);
+      }).then(function(searchResult){
+        return new Promise((resolve, reject) => {
+          var messageObj = {
+            type: "template",
+            altText: lineMessageObj.text + "の検索結果",
+            template: {
+              type: "carousel",
+              columns: underscore.map(resultSamples, function(video){
+                return {
+                  thumbnailImageUrl: video.thumb,
+                  title: underscoreString(video.title).prune(37).value(),
+                  text: "再生時間:" + video.duration.toString(),
+                  defaultAction: {
                     type: "uri",
                     label: "動画を見る",
                     uri: video.url
-                  }
-                ]
-              }
-            })
-          }
-        };
-        resolve(messageObj);
+                  },
+                  actions: [
+                    {
+                      type: "uri",
+                      label: "動画を見る",
+                      uri: video.url
+                    }
+                  ]
+                }
+              })
+            }
+          };
+          resolve(messageObj);
+        });
       });
+    }
+    return null;
+  }
+
+  this.linkRichMenu = function(userId, richMenuId){
+    return this.lineClient.linkRichMenuToUser(userId, richMenuId)
+  }
+
+  this.unlinkRichMenu = function(userId){
+    return this.lineClient.unlinkRichMenuFromUser(userId)
+  }
+
+  this.createRichmenu = function(){
+    return this.lineClient.createRichMenu({
+      size:{
+        width:2500,
+        height:843
+      },
+      selected: true,
+      name: "HiwaiHubController",
+      chatBarText: "オプション",
+      areas:[
+        {
+          bounds:{
+            x:0,
+            y:0,
+            width:2500,
+            height:443
+          },
+          action:{
+            type: "uri",
+            label: "本家PronHubに行く",
+            uri: "https://www.pornhub.com/"
+          }
+        },
+        {
+          bounds:{
+            x:0,
+            y:443,
+            width:833,
+            height:400
+          },
+          action:{
+            type: "uri",
+            label: "仮想通貨Vergeを購入する",
+            uri: "https://www.binance.com/?ref=16721878"
+          }
+        },
+        {
+          bounds:{
+            x:834,
+            y:443,
+            width:833,
+            height:400
+          },
+          action:{
+            type: "uri",
+            label: "日本円でBitCoinを購入する",
+            uri: "https://bitflyer.jp?bf=3mrjfos1"
+          }
+        },
+        {
+          bounds:{
+            x:1667,
+            y:443,
+            width:833,
+            height:400
+          },
+          action:{
+            type: "message",
+            label: "Vergeで寄付する",
+            text: "D6NkyiFL9rvqu8bjaSaqwD9gr1cwQRbiu6"
+          }
+        }
+      ]
+    }).then(function(richmenuId){
+      console.log(richmenuId);
+    }).catch(function(err){
+      console.log(err);
+      console.log(JSON.stringify(err.originalError.response.data));
     });
   }
-  return null;
+
+  this.setRichmenuImage = function(richMenuId, filePath){
+    var fs = require('fs');
+    return this.lineClient.setRichMenuImage(richMenuId, fs.readFileSync(filePath));
+  }
+
+  this.deleteRichMenu = function(richMenuId){
+    return this.lineClient.deleteRichMenu(richMenuId);
+  };
+
+  this.getRichMenuList = function(){
+    return this.lineClient.getRichMenuList();
+  }
+
+  this.isHttpUrl = function(url){
+    var pattern = new RegExp('^(https?:\/\/)?' + // protocol
+     '((([a-z\d]([a-z\d-]*[a-z\d])*)\.)+[a-z]{2,}|' + // domain name
+     '((\d{1,3}\.){3}\d{1,3}))' + // OR ip (v4) address
+     '(\:\d+)?(\/[-a-z\d%_.~+]*)*' + // port and path
+     '(\?[;&a-z\d%_.~+=-]*)?' + // query string
+     '(\#[-a-z\d_]*)?$','i'); // fragment locater
+     return pattern.test(url)
+  }
 }
+
+module.exports = LineBot;
