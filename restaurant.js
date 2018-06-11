@@ -38,15 +38,12 @@ var Restaurant = function(){
     });
   };
 
-  this.requestGnavi = function(searchObj) {
+  this.requestGnavi = function(searchObj = {}) {
     var request_params = {
-      range: 3,
+//      range: 3,
       format: "json",
       keyid: process.env.GNAVI_APIKEY,
-      input_coordinates_mode: 2,
       coordinates_mode: 2,
-      latitude: latitude,
-      longitude: longitude,
       hit_per_page: 100
       //offset: 1,
       //no_smoking: 1,
@@ -67,6 +64,16 @@ var Restaurant = function(){
     //  #朝までやっているか
     //  request_hash[:until_morning] = 1
     //end
+    if(searchObj.latitude && searchObj.longitude){
+      // 世界測地系
+      request_params.input_coordinates_mode = 2;
+      request_params.range = searchObj.range;
+      request_params.latitude = searchObj.latitude;
+      request_params.longitude = searchObj.longitude;
+    }
+    if(searchObj.keyword){
+      request_params.freeword = searchObj.keyword;
+    }
     return new Promise((resolve, reject) => {
       request({url: apiRequests.gnavi, qs: request_params, json: true }, function(error, res, body) {
         if (error) {
@@ -98,18 +105,19 @@ var Restaurant = function(){
   //food	料理コード	料理（料理サブを含む)で絞りこむことができます。指定できるコードについては料理マスタAPI参照	 	5個まで指定可。*2
   //budget	検索用予算コード	予算で絞り込むことができます。指定できるコードについては予算マスタAPI参照	 	2個まで指定可。*2
 
-  this.lotRestaurant = function(latitude, longitude) {
+  this.lotRestaurant = function(searchObj = {}) {
     var requestResults = [];
-    return requestHotpepper({latitude: latitude, longitude: longitude}).then(function(hotpepperResults) {
+    return requestHotpepper(searchObj).then(function(hotpepperResults) {
       var shops = hotpepperResults.results.shop;
       for(var i = 0;i < shops.length;++i){
         requestResults.push(shops[i]);
       }
-      return requestGnavi(latitude, longitude);
+      return requestGnavi(searchObj);
     }).then(function(gnaviResults) {
       return new Promise((resolve, reject) => {
-        for(var i = 0;i < gnaviResults.length;++i){
-          requestResults.push(gnaviResults[i]);
+        var shops = gnaviResults.rest;
+        for(var i = 0;i < shops.length;++i){
+          requestResults.push(shops[i]);
         }
         resolve(underscore.sample(requestResults, 10));
       });

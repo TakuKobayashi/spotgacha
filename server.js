@@ -20,7 +20,7 @@ var server = http.createServer(app).listen(port, function () {
 
 app.get('/', function(req, res){
   console.log(req.query);
-  restaurant.requestHotpepper({keyword: req.query.keyword}).then(function(response){
+  restaurant.requestGnavi({keyword: req.query.keyword}).then(function(response){
     res.json(response.body);
   }).catch(function(err){
     res.json(err);
