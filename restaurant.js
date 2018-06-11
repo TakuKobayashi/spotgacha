@@ -1,5 +1,8 @@
 var request = require('request');
 var qs = require('querystring');
+var env = require('dotenv');
+
+process.env = Object.assign(env.load().parsed, process.env);
 
 var apiRequests = {
   hotpepper: "http://webservice.recruit.co.jp/hotpepper/gourmet/v1/",
@@ -9,7 +12,7 @@ var apiRequests = {
 };
 
 var Restaurant = function(){
-  this.requestHotpepper = function(searchObj) {
+  this.requestHotpepper = function(searchObj = {}) {
     var request_params = {
       format: "json",
       key: process.env.RECRUIT_APIKEY,
@@ -25,12 +28,12 @@ var Restaurant = function(){
       request_params.keyword = searchObj.keyword;
     }
     return new Promise((resolve, reject) => {
-      request({url: apiRequests.hotpepper, qs: request_params, json: true }, function(err, res, body) {
+      request({url: apiRequests.hotpepper, qs: request_params, json: true }, function(error, res) {
         if (error) {
           reject(error);
           return;
         }
-        resolve(res, body);
+        resolve(res);
       });
     });
   };
@@ -98,8 +101,9 @@ var Restaurant = function(){
   this.lotRestaurant = function(latitude, longitude) {
     var requestResults = [];
     return requestHotpepper({latitude: latitude, longitude: longitude}).then(function(hotpepperResults) {
-      for(var i = 0;i < hotpepperResults.length;++i){
-        requestResults.push(hotpepperResults[i]);
+      var shops = hotpepperResults.results.shop;
+      for(var i = 0;i < shops.length;++i){
+        requestResults.push(shops[i]);
       }
       return requestGnavi(latitude, longitude);
     }).then(function(gnaviResults) {
