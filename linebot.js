@@ -81,24 +81,29 @@ var LineBot = function(accessToken){
         return new Promise((resolve, reject) => {
           var messageObj = {
             type: "template",
-            altText: lineMessageObj.text + "の検索結果",
+            altText: "お店の候補はこちら!!",
             template: {
               type: "carousel",
-              columns: underscore.map(resultSamples, function(video){
+              columns: underscore.map(searchResult, function(restaurant){
                 return {
-                  thumbnailImageUrl: video.thumb,
-                  title: underscoreString(video.title).prune(37).value(),
-                  text: "再生時間:" + video.duration.toString(),
-                  defaultAction: {
-                    type: "uri",
-                    label: "動画を見る",
-                    uri: video.url
-                  },
+                  thumbnailImageUrl: restaurant.icon_url,
+                  title: restaurant.place_name,
+                  text: restaurant.place_description,
                   actions: [
                     {
                       type: "uri",
-                      label: "動画を見る",
-                      uri: video.url
+                      label: "詳細を見る",
+                      uri: restaurant.url
+                    },
+                    {
+                      type: "uri",
+                      label: "予約する",
+                      uri: "tel:" + restaurant.phone_number,
+                    },
+                    {
+                      type: "uri",
+                      label: "クーポンを使う",
+                      uri: restaurant.coupon_url
                     }
                   ]
                 }
