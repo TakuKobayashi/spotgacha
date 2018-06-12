@@ -117,7 +117,22 @@ var Restaurant = function(){
       return new Promise((resolve, reject) => {
         var shops = gnaviResults.rest;
         for(var i = 0;i < shops.length;++i){
-          requestResults.push(shops[i]);
+          var restaurantObj = {
+            id: "gnavi_" + shops[i].id,
+            orginal_id: shops[i].id,
+            latitude: shops[i].latitude,
+            longitude: shops[i].longitude,
+            address: shops[i].address,
+            name: shops[i].name,
+            description: shops[i].pr.pr_long || shops[i].pr.pr_short,
+            url: shops[i].url_mobile || shops[i].url,
+            phone_number: shops[i].tel || shops[i].tel_sub,
+            icon_url: shops[i].image_url.shop_image1 || shops[i].image_url.shop_image2,
+            coupon_url: shops[i].coupon_url.mobile || shops[i].coupon_url.pc,
+            opentime: shops[i].opentime,
+            holiday: shops[i].holiday,
+          };
+          requestResults.push(restaurantObj);
         }
         resolve(underscore.sample(requestResults, 10));
       });

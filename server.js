@@ -19,7 +19,6 @@ var server = http.createServer(app).listen(port, function () {
 });
 
 app.get('/', function(req, res){
-  console.log(req.query);
   restaurant.requestGnavi({keyword: req.query.keyword}).then(function(response){
     res.json(response.body);
   }).catch(function(err){

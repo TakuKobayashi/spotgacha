@@ -85,6 +85,7 @@ var LineBot = function(accessToken){
             template: {
               type: "carousel",
               columns: underscore.map(searchResult, function(restaurant){
+                //TODO Use Flex Message
                 return {
                   thumbnailImageUrl: restaurant.icon_url,
                   title: restaurant.place_name,
@@ -104,6 +105,11 @@ var LineBot = function(accessToken){
                       type: "uri",
                       label: "クーポンを使う",
                       uri: restaurant.coupon_url
+                    },
+                    {
+                      type: "postback",
+                      label: "場所を知りたい",
+                      data: JSON.stringify({type: "showLocation", restaurantId: restaurant.id})
                     }
                   ]
                 }
