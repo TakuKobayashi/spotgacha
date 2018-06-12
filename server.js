@@ -21,7 +21,8 @@ var server = http.createServer(app).listen(port, function () {
 app.get('/', function(req, res){
   //restaurant.requestGooglePlace({latitude: 35.665697, longitude: 139.728615}).then(function(response){
   //restaurant.requestGnavi({keyword: req.query.keyword}).then(function(response){
-  restaurant.requestHotpepper({keyword: req.query.keyword}).then(function(response){
+  //restaurant.requestHotpepper({keyword: req.query.keyword}).then(function(response){
+  restaurant.requestYelp({latitude: 35.665697, longitude: 139.728615}).then(function(response){
     res.json(response.body);
   }).catch(function(err){
     res.json(err);

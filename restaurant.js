@@ -8,7 +8,7 @@ var apiRequests = {
   hotpepper: "http://webservice.recruit.co.jp/hotpepper/gourmet/v1/",
   gnavi: "https://api.gnavi.co.jp/RestSearchAPI/20150630/",
   google_place: "https://maps.googleapis.com/maps/api/place/",
-  yelp: "https://api.yelp.com/v3/"
+  yelp: "https://api.yelp.com/v3/businesses/search"
 };
 
 var Restaurant = function(){
@@ -102,6 +102,28 @@ var Restaurant = function(){
     // radarsearchの場合 {"geometry":{"location":{"lat":35.6654288,"lng":139.7313736}},"id":"adec56633b11850885e6eb192bfcac05670c16c5","place_id":"ChIJHU98fXiLGGARFVo98cPvr8U","reference":"CmRSAAAApQbyfeCmn_slXfULoEWSbD33q3Yuy7LTqVsRKAZ7KB6wz6477HQp5C9qNrfvXnC-nnIg7CGH9aJC41NQQvm7ePlDAf_02Jf3IC-4Xn-8Vphcfj7PWneKuR_bq3dEPQqTEhDSeisK-y-6cwbvJ7Ix7HaFGhRIwfoMfM08U6GdCNJjsXwpUBYQtA"}
     return new Promise((resolve, reject) => {
       request({url: apiRequests.google_place + "nearbysearch/json", qs: request_params, json: true }, function(error, res, body) {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve(res, body);
+      });
+    })
+  };
+
+  this.requestYelp = function(searchObj = {}) {
+    if(!searchObj.latitude || !searchObj.longitude){
+      return;
+    }
+    var request_params = {
+      latitude: searchObj.latitude,
+      longitude: searchObj.longitude,
+      // 半径(メートル)
+      radius: 500,
+      limit: 50
+    };
+    return new Promise((resolve, reject) => {
+      request({url: apiRequests.yelp, qs: request_params, headers: {"Authorization": ["Bearer", process.env.YELP_APIKEY].join(" ")}, json: true }, function(error, res, body) {
         if (error) {
           reject(error);
           return;
