@@ -136,7 +136,22 @@ var Restaurant = function(){
     return requestHotpepper(searchObj).then(function(hotpepperResults) {
       var shops = hotpepperResults.results.shop;
       for(var i = 0;i < shops.length;++i){
-        requestResults.push(shops[i]);
+        var restaurantObj = {
+          id: "hotpepper_" + shops[i].id,
+          orginal_id: shops[i].id,
+          latitude: shops[i].lat,
+          longitude: shops[i].lng,
+          address: shops[i].address,
+          name: shops[i].name,
+          description: shops[i].catch,
+          url: shops[i].urls.pc,
+          phone_number: null,
+          icon_url: shops[i].photo.mobile.l || shops[i].photo.mobile.s || shops[i].photo.pc.l || shops[i].photo.pc.m || shops[i].photo.pc.s,
+          coupon_url: shops[i].coupon_urls.sp || shops[i].coupon_urls.pc,
+          opentime: shops[i].open,
+          holiday: shops[i].close,
+        };
+        requestResults.push(restaurantObj);
       }
       return requestGnavi(searchObj);
     }).then(function(gnaviResults) {
