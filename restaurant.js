@@ -7,7 +7,7 @@ process.env = Object.assign(env.load().parsed, process.env);
 var apiRequests = {
   hotpepper: "http://webservice.recruit.co.jp/hotpepper/gourmet/v1/",
   gnavi: "https://api.gnavi.co.jp/RestSearchAPI/20150630/",
-  google_place: "https://maps.googleapis.com/maps/api/place/nearbysearch/output?parameters",
+  google_place: "https://maps.googleapis.com/maps/api/place/",
   yelp: "https://api.yelp.com/v3/"
 };
 
@@ -76,6 +76,32 @@ var Restaurant = function(){
     }
     return new Promise((resolve, reject) => {
       request({url: apiRequests.gnavi, qs: request_params, json: true }, function(error, res, body) {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve(res, body);
+      });
+    })
+  };
+
+  this.requestGooglePlace = function(searchObj = {}) {
+    if(!searchObj.latitude || !searchObj.longitude){
+      return;
+    }
+    var request_params = {
+      key: process.env.GOOGLE_APIKEY,
+      location: [searchObj.latitude, searchObj.longitude].join(","),
+      // 半径(メートル)
+      radius: 500,
+      // 絞り込む施設種別。convenience_store,department_store,shopping_mall,store  は一旦stay
+      types: "bakery|cafe|restaurant|meal_delivery|meal_takeaway"
+    };
+    // apiRequests.google_place + "nearbysearch/json"
+    // apiRequests.google_place + "radarsearch/json"
+    // radarsearchの場合 {"geometry":{"location":{"lat":35.6654288,"lng":139.7313736}},"id":"adec56633b11850885e6eb192bfcac05670c16c5","place_id":"ChIJHU98fXiLGGARFVo98cPvr8U","reference":"CmRSAAAApQbyfeCmn_slXfULoEWSbD33q3Yuy7LTqVsRKAZ7KB6wz6477HQp5C9qNrfvXnC-nnIg7CGH9aJC41NQQvm7ePlDAf_02Jf3IC-4Xn-8Vphcfj7PWneKuR_bq3dEPQqTEhDSeisK-y-6cwbvJ7Ix7HaFGhRIwfoMfM08U6GdCNJjsXwpUBYQtA"}
+    return new Promise((resolve, reject) => {
+      request({url: apiRequests.google_place + "nearbysearch/json", qs: request_params, json: true }, function(error, res, body) {
         if (error) {
           reject(error);
           return;
