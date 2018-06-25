@@ -1,6 +1,7 @@
 var line = require('@line/bot-sdk');
 
 var Restaurant = require(__dirname + '/restaurant.js');
+var restaurant = new Restaurant();
 
 var underscore = require('underscore');
 var underscoreString = require("underscore.string");
@@ -62,9 +63,10 @@ var LineBot = function(accessToken){
   this.searchRestaurant = function(lineMessageObj) {
     if(lineMessageObj.message.type == "location"){
       var resultSamples = []
-      return lotRestaurant(lineMessageObj.message.latitude, lineMessageObj.message.longitude).then(function(searchResult){
+      return restaurant.lotRestaurant(lineMessageObj.message.latitude, lineMessageObj.message.longitude).then(function(searchResult){
         var insertObject = {
           message_id: lineMessageObj.message.id,
+          message_type: lineMessageObj.message.type,
           user_id: lineMessageObj.source.userId,
           reply_token: lineMessageObj.replyToken,
           applicationName: applicationName,
@@ -72,8 +74,9 @@ var LineBot = function(accessToken){
           input_location: {
             latitude: lineMessageObj.message.latitude,
             longitude: lineMessageObj.message.longitude,
-            address: lineMessageObj.message.longitude
+            address: lineMessageObj.message.address
           },
+          response_object: searchResult,
           created_at: lineMessageObj.timestamp
         }
         return dynamodb.createPromise("bot_messages", insertObject);
@@ -86,32 +89,40 @@ var LineBot = function(accessToken){
               type: "carousel",
               columns: underscore.map(searchResult, function(restaurant){
                 //TODO Use Flex Message
+                var carouselActions = []
+                if(restaurant.url){
+                  carouselActions.push({
+                    type: "uri",
+                    label: "詳細を見る",
+                    uri: restaurant.url
+                  });
+                }
+                if(restaurant.id){
+                  carouselActions.push({
+                    type: "postback",
+                    label: "場所を知りたい",
+                    data: JSON.stringify({type: "showLocation", restaurantId: restaurant.id})
+                  });
+                }
+                if(restaurant.phone_number){
+                  carouselActions.push({
+                    type: "uri",
+                    label: "予約する",
+                    uri: "tel:" + restaurant.phone_number,
+                  });
+                }
+                if(restaurant.coupon_url){
+                  carouselActions.push({
+                    type: "uri",
+                    label: "クーポンを使う",
+                    uri: restaurant.coupon_url
+                  });
+                }
                 return {
                   thumbnailImageUrl: restaurant.icon_url,
                   title: restaurant.place_name,
                   text: restaurant.place_description,
-                  actions: [
-                    {
-                      type: "uri",
-                      label: "詳細を見る",
-                      uri: restaurant.url
-                    },
-                    {
-                      type: "uri",
-                      label: "予約する",
-                      uri: "tel:" + restaurant.phone_number,
-                    },
-                    {
-                      type: "uri",
-                      label: "クーポンを使う",
-                      uri: restaurant.coupon_url
-                    },
-                    {
-                      type: "postback",
-                      label: "場所を知りたい",
-                      data: JSON.stringify({type: "showLocation", restaurantId: restaurant.id})
-                    }
-                  ]
+                  actions: carouselActions.slice(0,3),
                 }
               })
             }
