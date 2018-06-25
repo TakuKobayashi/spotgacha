@@ -155,49 +155,53 @@ var Restaurant = function(){
 
   this.lotRestaurant = function(searchObj = {}) {
     var requestResults = [];
-    return requestHotpepper(searchObj).then(function(hotpepperResults) {
-      var shops = hotpepperResults.results.shop;
+    return requestGnavi(searchObj).then(function(gnaviResults) {
+      var shops = gnaviResults.rest;
       for(var i = 0;i < shops.length;++i){
         var restaurantObj = {
-          id: "hotpepper_" + shops[i].id,
+          id: "gnavi_" + shops[i].id,
           orginal_id: shops[i].id,
-          latitude: shops[i].lat,
-          longitude: shops[i].lng,
+          latitude: shops[i].latitude,
+          longitude: shops[i].longitude,
           address: shops[i].address,
           name: shops[i].name,
-          description: shops[i].catch,
-          url: shops[i].urls.pc,
-          phone_number: null,
-          icon_url: shops[i].photo.mobile.l || shops[i].photo.mobile.s || shops[i].photo.pc.l || shops[i].photo.pc.m || shops[i].photo.pc.s,
-          coupon_url: shops[i].coupon_urls.sp || shops[i].coupon_urls.pc,
-          opentime: shops[i].open,
-          holiday: shops[i].close,
+          description: shops[i].pr.pr_long || shops[i].pr.pr_short,
+          url: shops[i].url_mobile || shops[i].url,
+          phone_number: shops[i].tel || shops[i].tel_sub,
+          icon_url: shops[i].image_url.shop_image1 || shops[i].image_url.shop_image2,
+          coupon_url: shops[i].coupon_url.mobile || shops[i].coupon_url.pc,
+          opentime: shops[i].opentime,
+          holiday: shops[i].holiday,
         };
         requestResults.push(restaurantObj);
       }
-      return requestGnavi(searchObj);
-    }).then(function(gnaviResults) {
+      return requestHotpepper(searchObj)
+    }).then(function(hotpepperResults) {
       return new Promise((resolve, reject) => {
-        var shops = gnaviResults.rest;
+        var shops = hotpepperResults.results.shop;
         for(var i = 0;i < shops.length;++i){
           var restaurantObj = {
-            id: "gnavi_" + shops[i].id,
+            id: "hotpepper_" + shops[i].id,
             orginal_id: shops[i].id,
-            latitude: shops[i].latitude,
-            longitude: shops[i].longitude,
+            latitude: shops[i].lat,
+            longitude: shops[i].lng,
             address: shops[i].address,
             name: shops[i].name,
-            description: shops[i].pr.pr_long || shops[i].pr.pr_short,
-            url: shops[i].url_mobile || shops[i].url,
-            phone_number: shops[i].tel || shops[i].tel_sub,
-            icon_url: shops[i].image_url.shop_image1 || shops[i].image_url.shop_image2,
-            coupon_url: shops[i].coupon_url.mobile || shops[i].coupon_url.pc,
-            opentime: shops[i].opentime,
-            holiday: shops[i].holiday,
+            description: shops[i].catch,
+            url: shops[i].urls.pc,
+            phone_number: null,
+            icon_url: shops[i].photo.mobile.l || shops[i].photo.mobile.s || shops[i].photo.pc.l || shops[i].photo.pc.m || shops[i].photo.pc.s,
+            coupon_url: shops[i].coupon_urls.sp || shops[i].coupon_urls.pc,
+            opentime: shops[i].open,
+            holiday: shops[i].close,
           };
           requestResults.push(restaurantObj);
         }
-        resolve(underscore.sample(requestResults, 10));
+        resolve(requestResults);
+      });
+    }).then(function(results) {
+      return new Promise((resolve, reject) => {
+        resolve(underscore.sample(results, 10));
       });
     });
   }
