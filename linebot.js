@@ -69,7 +69,7 @@ var LineBot = function(accessToken){
           message_type: lineMessageObj.message.type,
           user_id: lineMessageObj.source.userId,
           reply_token: lineMessageObj.replyToken,
-          applicationName: applicationName,
+          application_name: applicationName,
           input_text: lineMessageObj.message.title,
           input_location: {
             latitude: lineMessageObj.message.latitude,
