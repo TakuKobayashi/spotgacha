@@ -63,7 +63,11 @@ var LineBot = function(accessToken){
   this.searchRestaurant = function(lineMessageObj) {
     if(lineMessageObj.message.type == "location"){
       var resultSamples = []
-      return restaurant.lotRestaurant(lineMessageObj.message.latitude, lineMessageObj.message.longitude).then(function(searchResult){
+      return restaurant.lotRestaurant({
+        latitude: lineMessageObj.message.latitude,
+        longitude: lineMessageObj.message.longitude,
+        range: 3
+      }).then(function(searchResult){
         console.log(searchResult);
         resultSamples = searchResult;
         var insertObject = {

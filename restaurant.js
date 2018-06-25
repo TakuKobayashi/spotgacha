@@ -157,8 +157,9 @@ var Restaurant = function(){
   //budget	検索用予算コード	予算で絞り込むことができます。指定できるコードについては予算マスタAPI参照	 	2個まで指定可。*2
 
   this.lotRestaurant = function(searchObj = {}) {
+    var self = this;
     var requestResults = [];
-    return this.requestGnavi(searchObj).then(function(gnaviResponse) {
+    return self.requestGnavi(searchObj).then(function(gnaviResponse) {
       var shops = gnaviResponse.body.rest;
       for(var i = 0;i < shops.length;++i){
         var restaurantObj = {
@@ -178,9 +179,10 @@ var Restaurant = function(){
         };
         requestResults.push(restaurantObj);
       }
-      return this.requestHotpepper(searchObj)
+      return self.requestHotpepper(searchObj)
     }).then(function(hotpepperResponse) {
       return new Promise((resolve, reject) => {
+        console.log(JSON.stringify(hotpepperResponse.body));
         var shops = hotpepperResponse.body.results.shop;
         for(var i = 0;i < shops.length;++i){
           var restaurantObj = {
