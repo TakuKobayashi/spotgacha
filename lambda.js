@@ -29,6 +29,7 @@ exports.handler = function (event, context) {
       }), context);
     }else if(lineMessage.type == "postback"){
       var receiveData = JSON.parse(lineMessage.postback.data);
+      console.log(receiveData);
     }else if(lineMessage.type == "message"){
       var replyMessageObjectPromise = linebot.searchRestaurant(lineMessage);
       if(!replyMessageObjectPromise) return;

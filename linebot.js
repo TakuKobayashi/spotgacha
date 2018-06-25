@@ -64,6 +64,8 @@ var LineBot = function(accessToken){
     if(lineMessageObj.message.type == "location"){
       var resultSamples = []
       return restaurant.lotRestaurant(lineMessageObj.message.latitude, lineMessageObj.message.longitude).then(function(searchResult){
+        console.log(searchResult);
+        resultSamples = searchResult;
         var insertObject = {
           message_id: lineMessageObj.message.id,
           message_type: lineMessageObj.message.type,
@@ -87,7 +89,7 @@ var LineBot = function(accessToken){
             altText: "お店の候補はこちら!!",
             template: {
               type: "carousel",
-              columns: underscore.map(searchResult, function(restaurant){
+              columns: underscore.map(resultSamples, function(restaurant){
                 //TODO Use Flex Message
                 var carouselActions = []
                 if(restaurant.url){

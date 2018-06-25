@@ -1,8 +1,11 @@
 var request = require('request');
 var qs = require('querystring');
+var fs = require('fs');
 var env = require('dotenv');
 
-process.env = Object.assign(env.load().parsed, process.env);
+if(fs.existsSync('.env')){
+  process.env = Object.assign(env.load().parsed, process.env);
+}
 
 var apiRequests = {
   hotpepper: "http://webservice.recruit.co.jp/hotpepper/gourmet/v1/",
@@ -155,8 +158,8 @@ var Restaurant = function(){
 
   this.lotRestaurant = function(searchObj = {}) {
     var requestResults = [];
-    return requestGnavi(searchObj).then(function(gnaviResults) {
-      var shops = gnaviResults.rest;
+    return this.requestGnavi(searchObj).then(function(gnaviResponse) {
+      var shops = gnaviResponse.body.rest;
       for(var i = 0;i < shops.length;++i){
         var restaurantObj = {
           id: "gnavi_" + shops[i].id,
@@ -175,10 +178,10 @@ var Restaurant = function(){
         };
         requestResults.push(restaurantObj);
       }
-      return requestHotpepper(searchObj)
-    }).then(function(hotpepperResults) {
+      return this.requestHotpepper(searchObj)
+    }).then(function(hotpepperResponse) {
       return new Promise((resolve, reject) => {
-        var shops = hotpepperResults.results.shop;
+        var shops = hotpepperResponse.body.results.shop;
         for(var i = 0;i < shops.length;++i){
           var restaurantObj = {
             id: "hotpepper_" + shops[i].id,
