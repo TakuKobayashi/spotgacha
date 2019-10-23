@@ -14,3 +14,12 @@ nbproject
 .idea
 .node_history
 .env
+
+# package directories
+jspm_packages
+
+# Serverless directories
+.serverless
+
+# Webpack directories
+.webpack
