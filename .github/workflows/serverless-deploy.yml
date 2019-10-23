@@ -1,26 +1,31 @@
-name: Node CI
+on:
+  push:
+    branches:
+    - serverless-deploy
 
-on: [push]
-
+name: Serverless Deploy
 jobs:
-  build:
-
+  deploy:
+    name: deploy
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [8.x, 10.x, 12.x]
-
     steps:
-    - uses: actions/checkout@v1
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
-      with:
-        node-version: ${{ matrix.node-version }}
-    - name: npm install, build, and test
-      run: |
-        npm ci
-        npm run build --if-present
-        npm test
+    - uses: actions/checkout@master
+    - name: setup ubuntu
+      run: sudo apt-get --quiet update --yes
+    - name: yarn install
+      working-directory: ./serverless
+      run: yarn install
+    - name: serverless package and deploy
+      working-directory: ./serverless
       env:
-        CI: true
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      run: |
+        yarn add serverless
+        ./node_modules/serverless/bin/serverless package --package ./build
+        ./node_modules/serverless/bin/serverless config credentials --provider aws --key ${AWS_ACCESS_KEY_ID} --secret ${AWS_SECRET_ACCESS_KEY}
+        ./node_modules/serverless/bin/serverless deploy --package ./build
+    - uses: actions/upload-artifact@master
+      with:
+        name: build
+        path: serverless/build
